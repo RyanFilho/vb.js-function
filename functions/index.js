@@ -26,19 +26,33 @@ exports.lexAnalyser = functions.https.onRequest((request, response) => {
     
     var lex = function(input){
         var tokens = [];
+        var errors = [];
         input.split(/\r\n|\r|\n/g).map(function(value, line){
-            lexline(value, line+1).map(token => tokens.push(token));        
+            var data = lexline(value, line+1);
+            data.tokens.map(t => tokens.push(t));        
+            data.errors.map(e => errors.push(e));        
         });
-        return tokens;
+        return {
+            tokens: tokens,
+            errors: errors,
+        };
     }
     
     var lexline = function (input, line) {
-        var tokens = [], c, col = 0;
+        var tokens = [], errors = [], c, col = 0;
         var advance = function () { return c = input[++col]; };
         var addToken = function (type, value, line, col) {
             tokens.push({
                 type: type,
                 value: value,
+                line: line,
+                col: col,
+            });
+        };
+        var addError = function (id, error, line, col) {
+            errors.push({
+                id: id,
+                error: error,
                 line: line,
                 col: col,
             });
@@ -51,6 +65,7 @@ exports.lexAnalyser = functions.https.onRequest((request, response) => {
                 addToken("operator", c, line, col+1);
                 advance();
             } else if (isDigit(c)) {
+                var firstCol = col;
                 var num = c;
                 while (isDigit(advance())) num += c;
                 if (c === ".") {
@@ -58,15 +73,17 @@ exports.lexAnalyser = functions.https.onRequest((request, response) => {
                 }
                 num = parseFloat(num);
                 if (!isFinite(num)) 
-                    console.log("Número \"" + num + "\" não é muito grande ou muito pequeno para um inteiro de 64 bits. Linha:" + line + " Coluna:" + col+1);
+                    addError(2,"Número \"" + num + "\" não é muito grande ou muito pequeno para um inteiro de 64 bits.", line, firstCol+1)
                 else 
                     addToken("number", num, line, col+1);
             } else if (isQuotes(c)) {
+                var firstCol = col;
                 var str = c;            
                 while (!isQuotes(advance()))
                 {
                     if (c === undefined){
-                        console.log("Você esqueceu de fechar a string! Linha:" + line + " Coluna:" + col+1);
+                        addError(1,"Você esqueceu de fechar a string.", line, firstCol+1)
+                        console.log( + col+1);
                         break;
                     }
                     else{
@@ -77,6 +94,7 @@ exports.lexAnalyser = functions.https.onRequest((request, response) => {
                 addToken("string", str, line, col+1);
                 advance();
             }else if (isIdentifier(c)) {
+                var firstCol = col;
                 var idn = c;
                 while (isIdentifier(advance()) || isDigit(c)) idn += c;
                 if (isReserved(idn)) {
@@ -84,16 +102,19 @@ exports.lexAnalyser = functions.https.onRequest((request, response) => {
                 } else {
                     addToken("identifier", idn, line, col+1);
                 }            
-            } else console.log("Token não identificado \""+ c + "\". Linha:" + line + " Coluna:" + col+1); 
+            } else console.log(3, "Token não identificado \""+ c + "\".", line, col+1); 
         }         
-        return tokens;   
+        return {
+            tokens: tokens,
+            errors: errors,
+        };   
     };   
 
     return cors(request, response, () => {
-        var tokens = lex(value);
-        console.log('Sending data:', tokens);
+        var tokensAndErrors = lex(value);
+        console.log('Sending data:', tokensAndErrors);
         response.set('Access-Control-Allow-Origin', "*")
         response.set('Access-Control-Allow-Methods', 'GET, POST')        
-        response.status(200).send(tokens);
+        response.status(200).send(tokensAndErrors);
     });
 });
