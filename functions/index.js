@@ -1,5 +1,5 @@
 const functions = require('firebase-functions');
-const cors = require('cors')({origin: true});
+const cors = require('cors')({origin: false});
 
 exports.helloWorld = functions.https.onRequest((request, response) => {
  response.send("Hello from Firebase!");
@@ -11,10 +11,10 @@ exports.lexAnalyser = functions.https.onRequest((request, response) => {
     // value += '        Console.WriteLine("aaa")\n'
     // value += '    End Sub\n'
     // value += 'End Class\n'
-    if(!request.query.code){
-        return response.send(400)
-    }
-    const value = request.query.code
+    const value = JSON.parse(`${request.body}`).code
+    if(value === undefined){
+        return response.status(400).send(value)
+    }    
     var 
         isOperator      = c => /[+\-*\/\^%=(),]/.test(c),
         isDigit         = c => /[0-9]/.test(c),
@@ -90,8 +90,10 @@ exports.lexAnalyser = functions.https.onRequest((request, response) => {
     };   
 
     return cors(request, response, () => {
-        var data = lex(value);
-        console.log('Sending data:', data);
-        response.status(200).send(data);
+        var tokens = lex(value);
+        console.log('Sending data:', tokens);
+        response.set('Access-Control-Allow-Origin', "*")
+        response.set('Access-Control-Allow-Methods', 'GET, POST')        
+        response.status(200).send(tokens);
     });
 });
