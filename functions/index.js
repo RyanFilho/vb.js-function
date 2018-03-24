@@ -1,16 +1,7 @@
 const functions = require('firebase-functions');
 const cors = require('cors')({origin: false});
 
-exports.helloWorld = functions.https.onRequest((request, response) => {
- response.send("Hello from Firebase!");
-});
-
 exports.lexAnalyser = functions.https.onRequest((request, response) => {
-    // var value = 'Class Program\n'
-    // value += '    Sub Main(args As String())\n'
-    // value += '        Console.WriteLine("aaa")\n'
-    // value += '    End Sub\n'
-    // value += 'End Class\n'
     const value = JSON.parse(`${request.body}`).code
     if(value === undefined){
         return response.status(400).send(value)
