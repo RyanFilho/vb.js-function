@@ -1,4 +1,5 @@
 deploy:
   provider: firebase
+  github-token: $__GITHUB_TOKEN__  # Set in travis-ci.org dashboard, marked secure
   token:
     secure: "$__FIREBASE_TOKEN__
