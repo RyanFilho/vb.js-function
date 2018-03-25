@@ -1,0 +1,4 @@
+deploy:
+  provider: firebase
+  token:
+    secure: "$__FIREBASE_TOKEN__
