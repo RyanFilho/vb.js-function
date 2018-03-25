@@ -1,19 +1,27 @@
 const functions = require('firebase-functions');
-const cors = require('cors')({origin: false});
+const cors = require('cors')({origin: true});
+const 
+    numberId = 1, 
+    stringId = 2, 
+    operatorId = 3,
+    identifiedId = 4,
+    reservedId = 5;
 
 exports.lexAnalyser = functions.https.onRequest((request, response) => {
+    console.log(request.body);
     const value = JSON.parse(`${request.body}`).code
+    console.log(value);
     if(value === undefined){
         return response.status(400).send(value)
     }    
     var 
-        isOperator      = c => /[+\-*\/\^%=(),]/.test(c),
-        isDigit         = c => /[0-9]/.test(c),
-        isQuotes        = c => c === "\"",
-        isWhiteSpace    = c => /\s/.test(c),
-        isTextFormat    = c => /\n|\t/.test(c),
-        isReserved      = c => /\b(Class|Sub|End|As|Dim)\b/.test(c),
-        isIdentifier    = c => typeof c === "string" && !isOperator(c) && !isDigit(c) && !isWhiteSpace(c) && !isReserved(c);
+        isOperator      = token => /[+\-*\/\^%=(),]/.test(token),
+        isDigit         = token => /[0-9]/.test(token),
+        isQuotes        = token => token === "\"",
+        isWhiteSpace    = token => /\s/.test(token),
+        isTextFormat    = token => /\n|\t/.test(token),
+        isReserved      = token => /\b(Class|Sub|End|As|Dim)\b/.test(token),
+        isIdentifier    = token => typeof token === "string" && !isOperator(token) && !isDigit(token) && !isWhiteSpace(token) && !isReserved(token);
     
     var lex = function(input){
         var tokens = [];
@@ -25,15 +33,16 @@ exports.lexAnalyser = functions.https.onRequest((request, response) => {
         });
         return {
             tokens: tokens,
-            errors: errors,
+            messages: errors,
         };
     }
     
     var lexline = function (input, line) {
         var tokens = [], errors = [], c, col = 0;
         var advance = function () { return c = input[++col]; };
-        var addToken = function (type, value, line, col) {
+        var addToken = function (id, type, value, line, col) {
             tokens.push({
+                id: id,
                 type: type,
                 value: value,
                 line: line,
@@ -53,7 +62,7 @@ exports.lexAnalyser = functions.https.onRequest((request, response) => {
             c = input[col];
             if (isWhiteSpace(c)) advance();
             else if (isOperator(c)) {
-                addToken("operator", c, line, col+1);
+                addToken(operatorId, "operator", c, line, col+1);
                 advance();
             } else if (isDigit(c)) {
                 var firstCol = col;
@@ -64,16 +73,16 @@ exports.lexAnalyser = functions.https.onRequest((request, response) => {
                 }
                 num = parseFloat(num);
                 if (!isFinite(num)) 
-                    addError(2,"Número \"" + num + "\" não é muito grande ou muito pequeno para um inteiro de 64 bits.", line, firstCol+1)
+                    addError(2,"Error: The number \"" + num + "\" is too large or too small for a 64-bit integer.", line, firstCol+1)
                 else 
-                    addToken("number", num, line, col+1);
+                    addToken(numberId, "number", num, line, col+1);
             } else if (isQuotes(c)) {
                 var firstCol = col;
                 var str = c;            
                 while (!isQuotes(advance()))
                 {
                     if (c === undefined){
-                        addError(1,"Você esqueceu de fechar a string.", line, firstCol+1)
+                        addError(1,"Error: You did not close the string.", line, firstCol+1)
                         console.log( + col+1);
                         break;
                     }
@@ -82,18 +91,18 @@ exports.lexAnalyser = functions.https.onRequest((request, response) => {
                     }
                 }
                 str += c;
-                addToken("string", str, line, col+1);
+                addToken(stringId, "string", str, line, col+1);
                 advance();
             }else if (isIdentifier(c)) {
                 var firstCol = col;
                 var idn = c;
                 while (isIdentifier(advance()) || isDigit(c)) idn += c;
                 if (isReserved(idn)) {
-                    addToken("reserved", idn, line, col+1);
+                    addToken(reservedId, "reserved", idn, line, col+1);
                 } else {
-                    addToken("identifier", idn, line, col+1);
+                    addToken(identifiedId, "identifier", idn, line, col+1);
                 }            
-            } else console.log(3, "Token não identificado \""+ c + "\".", line, col+1); 
+            } else console.log(3, "Error: Token not identified. \""+ c + "\".", line, col+1); 
         }         
         return {
             tokens: tokens,
