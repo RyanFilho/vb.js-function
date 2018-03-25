@@ -1,10 +1,4 @@
 language: node_js
 node_js:
-  - "node"
-install: cd functions; npm install;
-deploy:
-  local-dir: functions
-  provider: firebase
-  token:
-    secure: "$__FIREBASE_TOKEN__"
-  project: "vbjs-6639a"
+- "node"
+script: firebase deploy --token "$__FIREBASE_TOKEN__"
